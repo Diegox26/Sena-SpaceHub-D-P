@@ -1,29 +1,19 @@
-import './SenaHeader.css';
-import { NavLink } from 'react-router-dom';
+// 📁 src/components/SenaHeader/SenaHeader.tsx
+export interface SenaHeaderProps {
+  tituloPortal: string;
+  centroFormacion: string;
+}
 
-function SenaHeader() {
+export default function SenaHeader({ tituloPortal, centroFormacion }: SenaHeaderProps) {
   return (
-    <header className="sena-header">
-      <div className="header-brand">
-        <span className="logo-badge">SENA SpaceHub</span>
-        <div>
-          <p className="header-sub">Centro de Gestión de Mercados, Logística y TI</p>
-        </div>
+    <header className="bg-sena-dark border-b-4 border-sena-green px-6 py-3 flex items-center gap-3">
+      <div className="w-8 h-8 rounded-full border-2 border-sena-green flex items-center justify-center text-sena-green font-black">
+        +
       </div>
-      <div className="botones_contenedor">
-        <div className="botones">
-          <button >Dashboard</button>
-          <button><NavLink to ="/inventario" className={({ isActive}) => isActive ? 'btn active' : 'btn'}> Inventario </NavLink></button>
-          <button>préstamos</button>
-          <button>Ticketera</button>
-        </div>
-      </div>
-
-      <div className="botones_registro">
-        <button>iniciar secion</button>
-        <button>registrase</button>
+      <div>
+        <h1 className="text-sm font-bold leading-none">{tituloPortal}</h1>
+        <p className="text-[11px] text-slate-400">{centroFormacion}</p>
       </div>
     </header>
   );
 }
-export default SenaHeader;
