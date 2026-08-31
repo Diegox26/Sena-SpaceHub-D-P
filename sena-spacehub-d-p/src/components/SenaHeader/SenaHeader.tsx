@@ -7,19 +7,19 @@ function SenaHeader() {
       <div className="header-brand">
         <span className="logo-badge">SENA SpaceHub</span>
         <div>
-          <h1 className="header-title">Portal del Aprendiz ADSO</h1>
-          <p className="header-sub">Centro de Gestión de Mercados, Logística y Tecnologías de la Información</p>
+          <p className="header-sub">Centro de Gestión de Mercados, Logística y TI</p>
+        </div>
+      </div>
+      <div className="botones_contenedor">
+        <div className="botones">
+          <button >Dashboard</button>
+          <button><NavLink to ="/inventario" className={({ isActive}) => isActive ? 'btn active' : 'btn'}> Inventario </NavLink></button>
+          <button>préstamos</button>
+          <button>Ticketera</button>
         </div>
       </div>
 
-      <div>
-        <button >Dashboard</button>
-        <button><NavLink to ="/inventario" className={({ isActive}) => isActive ? 'btn active' : 'btn'}> Inventario </NavLink></button>
-        <button>préstamos</button>
-        <button>Ticketera</button>
-      </div>
-
-      <div>
+      <div className="botones_registro">
         <button>iniciar secion</button>
         <button>registrase</button>
       </div>
