@@ -18,7 +18,7 @@ app.use(express.json());
 const USERS = [
   { id: 999, nombreCompleto: 'Ing. Roberto Gómez', email: 'roberto.gomez@sena.edu.co', password: 'admin123password', role: 'Administrador' },
   { id: 101, nombreCompleto: 'Ana María Fajardo', email: 'ana.fajardo@sena.edu.co', password: 'aprendiz123password', role: 'Aprendiz' },
-  { id: 202, nombreCompleto: 'Prof. Juan Carlos Pérez', email: 'instructor.perez@sena.edu.co', password: 'instructor123password', role: 'Instructor' }
+  { id: 202, nombreCompleto: 'Prof. Juan Carlos Pérez', email: 'instructor.perez@sena.edu.co', password: 'instructor123password', rol: 'Instructor' }
 ];
 
 let EQUIPOS = [
@@ -45,8 +45,8 @@ const authenticateToken = (req, res, next) => {
 // Middleware de Control de Roles (RBAC)
 const requireRole = (...allowedRoles) => {
   return (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ statusCode: 403, error: 'Forbidden', message: `Acceso denegado para el rol '${req.user?.role}'` });
+    if (!req.user || !allowedRoles.includes(req.user.rol)) {
+      return res.status(403).json({ statusCode: 403, error: 'Forbidden', message: `Acceso denegado para el rol '${req.user?.rol}'` });
     }
     next();
   };
@@ -57,8 +57,8 @@ app.post('/api/v1/auth/login', (req, res) => {
   const user = USERS.find(u => u.email === email && u.password === password);
   if (!user) return res.status(401).json({ statusCode: 401, error: 'Unauthorized', message: 'Credenciales inválidas' });
 
-  const accessToken = jwt.sign({ sub: user.id, name: user.nombreCompleto, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
-  return res.json({ statusCode: 200, message: 'Autenticación exitosa', accessToken, user: { id: user.id, nombreCompleto: user.nombreCompleto, email: user.email, role: user.role } });
+  const accessToken = jwt.sign({ sub: user.id, name: user.nombreCompleto, email: user.email, rol: user.rol }, JWT_SECRET, { expiresIn: '8h' });
+  return res.json({ statusCode: 200, message: 'Autenticación exitosa', accessToken, user: { id: user.id, nombreCompleto: user.nombreCompleto, email: user.email, rol: user.rol } });
 });
 
 app.post('/api/v1/auth/logout', authenticateToken, (req, res) => {
