@@ -2,12 +2,12 @@
 import type { EquipoData, PrestamoData, IncidenciaData } from '../../../types/spacehub.types';
 
 export interface DashboardPageProps {
-  equipos: EquipoData[];
-  prestamos: PrestamoData[];
-  incidencias: IncidenciaData[];
+  equipos?: EquipoData[];
+  prestamos?: PrestamoData[];
+  incidencias?: IncidenciaData[];
 }
 
-export default function DashboardPage({ equipos, prestamos, incidencias }: DashboardPageProps) {
+export default function DashboardPage({ equipos = [], prestamos = [], incidencias = [] }: DashboardPageProps) {
   const activos = prestamos.filter((p) => p.estado === 'Activo').length;
   const pendientes = incidencias.filter((i) => !i.resuelta).length;
 

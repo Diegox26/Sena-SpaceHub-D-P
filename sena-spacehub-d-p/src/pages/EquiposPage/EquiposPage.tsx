@@ -1,87 +1,100 @@
-// 📁 src/pages/EquiposPage/EquiposPage.tsx — SESIÓN 4
-// El formulario inline de Sesión 3 desapareció: ahora "Registrar Equipo"
-// navega a la ruta protegida /inventario/nuevo, y cada fila navega a
-// /inventario/:placaSena (ruta dinámica) en vez de mostrar el detalle inline.
-import { useNavigate } from 'react-router-dom';
+// =================================================================
+// Archivo: src/pages/EquiposPage/EquiposPage.tsx
+//RESPONSABILIDAD: Muestra la tabla con el listado de equipos y permite eliminar recursos.
+// =================================================================
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { equiposService, type Equipo } from '../../services/equiposService';
 import { useAuth } from '../../context/AuthContext';
-import type { EquipoData } from '../../../types/spacehub.types';
 
-export interface EquiposPageProps {
-  equipos: EquipoData[];
-  onCambiarEstado: (id: number) => void;
-}
+export default function EquiposPage() {
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { isAdmin } = useAuth();
 
-export default function EquiposPage({ equipos, onCambiarEstado }: EquiposPageProps) {
-  const { user } = useAuth();
-  const esAprendiz = user?.rol === 'Aprendiz';
-  const navigate = useNavigate();
+  const loadEquipos = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await equiposService.getAll();
+      setEquipos(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { 
+    // eslint-disable-next-line
+    loadEquipos(); }, []);
+
+  const handleDelete = async (placaSena: string) => {
+    if (!window.confirm(`¿Eliminar el equipo ${placaSena}?`)) return;
+    try {
+      await equiposService.remove(placaSena);
+      loadEquipos();
+    } catch (err: unknown) {
+      alert(`Error API: ${err instanceof Error ? err.message : 'Error al eliminar'}`);
+    }
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 bg-slate-800 border border-slate-700 rounded-2xl text-white space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-white">💻 Catálogo General de Computadores</h3>
-        {!esAprendiz && (
-          <button
-            onClick={() => navigate('/inventario/nuevo')}
-            className="bg-sena-green text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-emerald-600"
-          >
-            + Registrar Equipo
-          </button>
+        <div>
+          <h2 className="text-xl font-bold text-sena-green">Inventario de Equipos SENA</h2>
+          <p className="text-xs text-slate-400">Datos obtenidos a través de la capa de servicio (equiposService.ts)</p>
+        </div>
+        {isAdmin && (
+          <Link to="/inventario/nuevo" className="px-4 py-2.5 bg-sena-green hover:bg-emerald-600 text-slate-900 font-extrabold rounded-xl text-xs transition shadow-lg">
+            + Registrar Equipo (POST)
+          </Link>
         )}
       </div>
 
-      <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-x-auto">
-        <table className="w-full text-left text-xs font-mono border-collapse">
-          <thead>
-            <tr className="bg-slate-900 text-slate-400 border-b border-slate-800">
-              <th className="p-3">Placa</th>
-              <th className="p-3">Equipo</th>
-              <th className="p-3">RAM</th>
-              <th className="p-3">Estado</th>
-              <th className="p-3 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {equipos.map((eq) => (
-              <tr key={eq.id} className="hover:bg-slate-900/50">
-                <td className="p-3">
-                  <button
-                    onClick={() => navigate(`/inventario/${eq.placaSena}`)}
-                    className="text-sena-green font-bold hover:underline"
-                  >
-                    {eq.placaSena}
-                  </button>
-                </td>
-                <td className="p-3 font-bold text-white">{eq.marcaModelo}</td>
-                <td className="p-3 text-slate-400">{eq.ram}</td>
-                <td className="p-3">
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      eq.estado === 'Operativo'
-                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                        : 'bg-amber-950 text-amber-400 border border-amber-800'
-                    }`}
-                  >
-                    {eq.estado}
-                  </span>
-                </td>
-                <td className="p-3 text-right">
-                  {esAprendiz ? (
-                    <span className="text-[10px] text-slate-500">Solo Operarios</span>
-                  ) : (
-                    <button
-                      onClick={() => onCambiarEstado(eq.id)}
-                      className="text-[10px] bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg text-slate-300"
-                    >
-                      Cambiar Estado
-                    </button>
-                  )}
-                </td>
+      {error && <div className="p-3 bg-rose-900/80 border border-rose-500 rounded-xl text-rose-200 text-xs font-mono">{error}</div>}
+
+      {loading ? (
+        <div className="text-center py-8 text-slate-400 font-mono text-xs">Cargando inventario...</div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-700">
+          <table className="w-full text-left text-xs font-mono">
+            <thead className="bg-slate-900 text-slate-400 uppercase">
+              <tr>
+                <th className="p-3">Placa SENA</th>
+                <th className="p-3">Marca/Modelo</th>
+                <th className="p-3">RAM</th>
+                <th className="p-3">Ambiente</th>
+                <th className="p-3">Estado</th>
+                <th className="p-3 text-right">Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-slate-700/60">
+              {equipos.map((eq) => (
+                <tr key={eq.placaSena} className="hover:bg-slate-750/50">
+                  <td className="p-3 text-sena-green font-bold">{eq.placaSena}</td>
+                  <td className="p-3 text-white font-sans">{eq.marcaModelo}</td>
+                  <td className="p-3">{eq.ram}</td>
+                  <td className="p-3 font-sans">{eq.ambiente}</td>
+                  <td className="p-3">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${eq.estado === 'Operativo' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                      {eq.estado}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right space-x-2 font-sans">
+                    <Link to={`/inventario/${eq.placaSena}`} className="px-2.5 py-1 bg-slate-700 hover:bg-sky-600 rounded-lg text-xs transition inline-block">Editar</Link>
+                    {isAdmin && (
+                      <button onClick={() => handleDelete(eq.placaSena)} className="px-2.5 py-1 bg-rose-800 hover:bg-rose-600 rounded-lg text-xs transition">Eliminar</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

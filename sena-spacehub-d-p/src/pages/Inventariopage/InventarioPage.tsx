@@ -1,5 +1,4 @@
-import React from 'react';
-export default function InventarioPage({ onNavigate }: { onNavigate?: (pagina: any) => void }) {
+export default function InventarioPage() {
 
   return (
     <div className="min-h-screen bg-[#070b19] text-gray-200 p-6 font-sans">
