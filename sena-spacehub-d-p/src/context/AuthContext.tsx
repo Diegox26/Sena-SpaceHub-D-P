@@ -10,7 +10,7 @@ export interface User {
   id: number;
   nombreCompleto: string;
   email: string;
-  rol: 'Administrador' | 'Aprendiz' | 'Instructor';
+  role: 'Administrador' | 'Aprendiz' | 'Instructor';
 }
 
 interface AuthContextType {
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, isAdmin: user?.rol === 'Administrador' }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, isAdmin: user?.role === 'Administrador' }}>
       {children}
     </AuthContext.Provider>
   );
