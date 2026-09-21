@@ -1,129 +1,171 @@
-// 📁 src/pages/PrestamosPage/PrestamosPage.tsx
 import { useEffect, useState } from 'react';
+import { prestamosService, type Prestamo } from '../../services/prestamosService';
+import { equiposService, type Equipo } from '../../services/equiposService';
 import { useAuth } from '../../context/AuthContext';
-import type { EquipoData, PrestamoData } from '../../../types/spacehub.types';
+import PrestamoModal from '../../components/PrestamoModal';
+import Swal from 'sweetalert2';
 
-export interface PrestamosPageProps {
-  equipos: EquipoData[];
-  prestamos: PrestamoData[];
-  onCrearPrestamo: (p: PrestamoData) => void;
-  onDevolver: (id: number) => void;
-}
+export default function PrestamosPage() {
+  const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const { isAdmin, user } = useAuth();
 
-export default function PrestamosPage({ equipos, prestamos, onCrearPrestamo, onDevolver }: PrestamosPageProps) {
-  const { user } = useAuth();
-  const esAprendiz = user?.rol === 'Aprendiz';
-  const operativos = equipos.filter((e) => e.estado === 'Operativo');
-
-  const [mostrarForm, setMostrarForm] = useState(false);
-  const [aprendiz, setAprendiz] = useState('');
-  const [ficha, setFicha] = useState('');
-  const [equipoSel, setEquipoSel] = useState(operativos[0]?.placaSena ?? '');
-
-  // Autocompletado de sesión: si es Aprendiz, sus datos se toman del AuthContext
-  useEffect(() => {
-    if (esAprendiz && user) {
-      setAprendiz(user.nombreCompleto);
-      setFicha(user.ficha ?? '');
+  // --- FASE 1: Carga de datos desde el servidor ---
+  const loadPrestamos = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [prestamosData, equiposData] = await Promise.all([
+        prestamosService.getAll(),
+        equiposService.getAll()
+      ]);
+      setPrestamos(prestamosData);
+      setEquipos(equiposData);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al cargar');
+    } finally {
+      setLoading(false);
     }
-  }, [esAprendiz, user]);
-
-  const activos = prestamos.filter((p) => p.estado === 'Activo');
-
-  const confirmar = () => {
-    if (!aprendiz || !ficha || !equipoSel) return;
-    onCrearPrestamo({
-      id: Date.now(),
-      aprendiz,
-      ficha,
-      equipoPlaca: equipoSel,
-      horaInicio: 'Ahora mismo',
-      estado: 'Activo',
-    });
-    setMostrarForm(false);
   };
 
+  useEffect(() => { 
+    /* eslint-disable-next-line */
+    loadPrestamos(); 
+  }, []);
+
+  // --- FASE 2: Crear préstamo y mostrar alertas ---
+  const handleCrearPrestamo = async (data: { aprendiz: string; ficha: string; equipoPlaca: string }) => {
+    try {
+      await prestamosService.create(data);
+      loadPrestamos();
+      Swal.fire({
+        title: '¡Registrado!',
+        text: 'El préstamo se ha creado exitosamente.',
+        icon: 'success',
+        background: '#1e293b',
+        color: '#fff',
+        confirmButtonColor: '#39A900'
+      });
+    } catch {
+      Swal.fire({ title: 'Error', text: 'No se pudo registrar el préstamo', icon: 'error', background: '#1e293b', color: '#fff' });
+    }
+  };
+
+  // --- FASE 2: Devolver equipo ---
+  const handleDevolver = async (id: number) => {
+    const result = await Swal.fire({
+      title: '¿Confirmar Devolución?',
+      text: "El equipo quedará nuevamente disponible en el inventario.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#39A900',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, registrar devolución',
+      cancelButtonText: 'Cancelar',
+      background: '#1e293b',
+      color: '#fff'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await prestamosService.devolver(id);
+        loadPrestamos();
+        Swal.fire({
+          title: '¡Devuelto!',
+          text: 'El equipo ha sido devuelto exitosamente.',
+          icon: 'success',
+          background: '#1e293b',
+          color: '#fff',
+          confirmButtonColor: '#39A900'
+        });
+      } catch {
+        Swal.fire({ title: 'Error', text: 'No se pudo procesar la devolución', icon: 'error', background: '#1e293b', color: '#fff' });
+      }
+    }
+  };
+
+  // --- INTERFAZ: Listado de préstamos ---
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-white">📋 Gestión de Solicitudes de Préstamo</h3>
-        <button
-          onClick={() => setMostrarForm(!mostrarForm)}
-          className="bg-sena-green text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-emerald-600"
-        >
-          Solicitar Préstamo
+    <div className="space-y-6">
+      
+      <div className="p-6 bg-slate-800 border border-slate-700 rounded-2xl text-white shadow-xl flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-bold text-sena">Gestión de Préstamos</h2>
+          <p className="text-xs text-slate-400">Control de asignación y devoluciones de equipos de cómputo.</p>
+        </div>
+        <button onClick={() => setIsModalOpen(true)} className="px-4 py-2.5 bg-sena hover:bg-emerald-600 text-slate-900 font-extrabold rounded-xl text-xs transition shadow-lg">
+          + Nuevo Préstamo
         </button>
       </div>
 
-      {mostrarForm && (
-        <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
-          <p className="text-xs text-sky-400 bg-sky-950/60 p-3 rounded-xl border border-sky-800">
-            {esAprendiz
-              ? `⚡ Datos autocompletados desde tu sesión: ${aprendiz} (Ficha #${ficha}).`
-              : '🛠️ Modo Operario: puedes registrar la entrega a cualquier aprendiz.'}
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <input
-              value={aprendiz}
-              disabled={esAprendiz}
-              onChange={(e) => setAprendiz(e.target.value)}
-              placeholder="Nombre Aprendiz"
-              className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-white disabled:opacity-70"
-            />
-            <input
-              value={ficha}
-              disabled={esAprendiz}
-              onChange={(e) => setFicha(e.target.value)}
-              placeholder="Ficha"
-              className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-white disabled:opacity-70"
-            />
-            <select
-              value={equipoSel}
-              onChange={(e) => setEquipoSel(e.target.value)}
-              className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-white"
-            >
-              {operativos.map((eq) => (
-                <option key={eq.id} value={eq.placaSena}>
-                  {eq.placaSena} - {eq.marcaModelo}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setMostrarForm(false)} className="bg-slate-800 text-slate-300 text-xs px-3 py-1.5 rounded-xl">
-              Cancelar
-            </button>
-            <button onClick={confirmar} className="bg-sena-green text-white font-bold text-xs px-4 py-1.5 rounded-xl">
-              Confirmar Solicitud
-            </button>
-          </div>
-        </div>
-      )}
+      
+      <div className="p-6 bg-slate-800 border border-slate-700 rounded-2xl text-white shadow-xl">
+        <h2 className="text-xl font-bold text-sena mb-4">Historial de Préstamos Activos</h2>
+        
+        {error && <div className="p-3 mb-4 bg-rose-900/80 border border-rose-500 rounded-xl text-rose-200 text-xs font-mono">{error}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {activos.map((p) => (
-          <div key={p.id} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
-            <div className="flex justify-between items-start">
-              <span className="bg-sena-green/10 text-sena-green text-[10px] font-bold px-2 py-0.5 rounded">
-                Ficha #{p.ficha}
-              </span>
-              <span className="text-[10px] text-slate-400">{p.horaInicio}</span>
-            </div>
-            <div>
-              <h5 className="font-bold text-xs text-white">{p.aprendiz}</h5>
-              <p className="text-[11px] text-slate-400">
-                Equipo: <strong className="text-sena-green">{p.equipoPlaca}</strong>
-              </p>
-            </div>
-            <button
-              onClick={() => onDevolver(p.id)}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-slate-200 text-[11px] font-bold py-1.5 rounded-xl border border-slate-800"
-            >
-              ✅ Registrar Devolución
-            </button>
+        {loading ? (
+          <div className="text-center py-8 text-slate-400 font-mono text-xs animate-pulse">Conectando con el servidor...</div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-700">
+            <table className="w-full text-left text-xs font-mono">
+              <thead className="bg-slate-900 text-slate-400 uppercase">
+                <tr>
+                  <th className="p-3">Aprendiz / Ficha</th>
+                  <th className="p-3">Equipo (Placa)</th>
+                  <th className="p-3">Hora Salida</th>
+                  <th className="p-3">Estado</th>
+                  <th className="p-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700/60">
+                {prestamos.map((p) => (
+                  <tr key={p.id} className="hover:bg-slate-750/50 transition-colors">
+                    <td className="p-3 text-white font-sans">
+                      {p.aprendiz} <span className="text-slate-500 block text-[10px]">Ficha: {p.ficha}</span>
+                    </td>
+                    <td className="p-3 text-sena font-bold">{p.equipoPlaca}</td>
+                    <td className="p-3 text-slate-400">{p.horaInicio}</td>
+                    <td className="p-3">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${p.estado === 'Activo' ? 'bg-sky-500/20 text-sky-400' : 'bg-slate-500/20 text-slate-400'}`}>
+                        {p.estado}
+                      </span>
+                    </td>
+                    
+                    <td className="p-3 text-right font-sans">
+                      {p.estado === 'Activo' && isAdmin && (
+                        <button onClick={() => handleDevolver(p.id)} className="px-3 py-1.5 bg-slate-700 hover:bg-sky-600 rounded-lg text-xs font-bold transition shadow">
+                          Devolver
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {prestamos.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-6 text-center text-slate-500 font-sans">No hay préstamos registrados.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        ))}
+        )}
       </div>
+
+      
+      <PrestamoModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCrearPrestamo}
+        isAdmin={isAdmin}
+        defaultNombre={user?.nombreCompleto || ''}
+        defaultFicha={user?.ficha || ''}
+        equipos={equipos}
+      />
     </div>
   );
 }

@@ -18,7 +18,8 @@ app.use(express.json());
 const USERS = [
   { id: 999, nombreCompleto: 'Ing. Roberto Gómez', email: 'roberto.gomez@sena.edu.co', password: 'admin123password', role: 'Administrador' },
   { id: 101, nombreCompleto: 'Ana María Fajardo', email: 'ana.fajardo@sena.edu.co', password: 'aprendiz123password', role: 'Aprendiz' },
-  { id: 202, nombreCompleto: 'Prof. Juan Carlos Pérez', email: 'instructor.perez@sena.edu.co', password: 'instructor123password', rol: 'Instructor' }
+  { id: 101, nombreCompleto: 'Diego Pamplona', email: 'diegopamplona@sena.edu.co', password: 'aprendizsena123password', role: 'Aprendiz' },
+  { id: 202, nombreCompleto: 'Prof. Juan Carlos Pérez', email: 'instructor.perez@sena.edu.co', password: 'instructor123password', role: 'Instructor' }
 ];
 
 let EQUIPOS = [
@@ -45,8 +46,8 @@ const authenticateToken = (req, res, next) => {
 // Middleware de Control de Roles (RBAC)
 const requireRole = (...allowedRoles) => {
   return (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.rol)) {
-      return res.status(403).json({ statusCode: 403, error: 'Forbidden', message: `Acceso denegado para el rol '${req.user?.rol}'` });
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ statusCode: 403, error: 'Forbidden', message: `Acceso denegado para el rol '${req.user?.role}'` });
     }
     next();
   };
@@ -57,8 +58,8 @@ app.post('/api/v1/auth/login', (req, res) => {
   const user = USERS.find(u => u.email === email && u.password === password);
   if (!user) return res.status(401).json({ statusCode: 401, error: 'Unauthorized', message: 'Credenciales inválidas' });
 
-  const accessToken = jwt.sign({ sub: user.id, name: user.nombreCompleto, email: user.email, rol: user.rol }, JWT_SECRET, { expiresIn: '8h' });
-  return res.json({ statusCode: 200, message: 'Autenticación exitosa', accessToken, user: { id: user.id, nombreCompleto: user.nombreCompleto, email: user.email, rol: user.rol } });
+  const accessToken = jwt.sign({ sub: user.id, name: user.nombreCompleto, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
+  return res.json({ statusCode: 200, message: 'Autenticación exitosa', accessToken, user: { id: user.id, nombreCompleto: user.nombreCompleto, email: user.email, role: user.role } });
 });
 
 app.post('/api/v1/auth/logout', authenticateToken, (req, res) => {
@@ -90,3 +91,110 @@ app.delete('/api/v1/equipos/:placaSena', authenticateToken, requireRole('Adminis
 });
 
 app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}/api/v1`));
+
+// --- ENDPOINTS DE PRÉSTAMOS ---
+
+// --- ENDPOINTS DE PRÉSTAMOS ---
+
+
+
+let PRESTAMOS = [
+  { id: 1, userId: 101, equipoPlaca: 'SENA-1001', horaInicio: '08:00 AM', estado: 'Activo', creadoPorRol: 'Aprendiz' }
+];
+
+// Función helper para obtener info completa del préstamo con datos del usuario
+const getPrestamosConDetalles = (prestamos) => {
+  return prestamos.map(p => {
+    const usuario = USERS.find(u => u.id === p.userId);
+    return {
+      id: p.id,
+      userId: p.userId,
+      aprendiz: usuario?.nombreCompleto || 'Desconocido',
+      ficha: usuario?.ficha || 'N/A',
+      equipoPlaca: p.equipoPlaca,
+      horaInicio: p.horaInicio,
+      estado: p.estado,
+      creadoPorRol: p.creadoPorRol
+    };
+  });
+};
+
+app.get('/api/v1/prestamos', authenticateToken, (req, res) => {
+  if (req.user.role === 'Aprendiz') {
+    const misPrestamos = PRESTAMOS.filter(p => p.userId === req.user.sub);
+    return res.json(getPrestamosConDetalles(misPrestamos));
+  }
+  res.json(getPrestamosConDetalles(PRESTAMOS));
+});
+
+app.post('/api/v1/prestamos', authenticateToken, (req, res) => {
+  const { aprendizId, equipoPlaca } = req.body;
+  
+  // Determinar el ID del aprendiz
+  let userId;
+  if (req.user.role === 'Aprendiz') {
+    userId = req.user.sub; // Usa su propio ID
+  } else {
+    userId = aprendizId; // Admin proporciona el ID
+  }
+  
+  // Validar que el usuario existe
+  const usuario = USERS.find(u => u.id === userId);
+  if (!usuario) {
+    return res.status(404).json({ statusCode: 404, message: 'Aprendiz no encontrado' });
+  }
+  
+  const nuevoPrestamo = {
+    id: Date.now(),
+    userId,
+    equipoPlaca,
+    horaInicio: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    estado: 'Activo',
+    creadoPorRol: req.user.role
+  };
+  PRESTAMOS.unshift(nuevoPrestamo);
+  
+  // Devolver con detalles del usuario
+  const prestamo = getPrestamosConDetalles([nuevoPrestamo])[0];
+  res.status(201).json(prestamo);
+});
+
+app.put('/api/v1/prestamos/:id/devolver', authenticateToken, (req, res) => {
+  const index = PRESTAMOS.findIndex(p => p.id === Number(req.params.id));
+  if (index !== -1) {
+    PRESTAMOS[index].estado = 'Devuelto';
+    const prestamo = getPrestamosConDetalles([PRESTAMOS[index]])[0];
+    res.json(prestamo);
+  } else {
+    res.status(404).json({ message: 'Préstamo no encontrado' });
+  }
+});
+
+// --- ENDPOINT ANALÍTICO PARA EL DASHBOARD ---
+app.get('/api/v1/dashboard/stats', authenticateToken, (req, res) => {
+  const totalEquipos = EQUIPOS.length;
+  const equiposOperativos = EQUIPOS.filter(e => e.estado === 'Operativo').length;
+  const equiposMantenimiento = EQUIPOS.filter(e => e.estado === 'Mantenimiento' || e.estado === 'Dañado').length;
+  const prestamosActivos = PRESTAMOS.filter(p => p.estado === 'Activo').length;
+  
+  const incidenciasAlta = EQUIPOS.filter(e => e.estado === 'Dañado').length;
+  const incidenciasMedia = EQUIPOS.filter(e => e.estado === 'Mantenimiento').length;
+
+  res.json({
+    totalEquipos,
+    equiposOperativos,
+    equiposMantenimiento,
+    prestamosActivos,
+    tasaOcupacionGlobal: totalEquipos > 0 ? Math.round((prestamosActivos / totalEquipos) * 100) + '%' : '0%',
+    incidencias: {
+      total: incidenciasAlta + incidenciasMedia,
+      alta: incidenciasAlta,
+      media: incidenciasMedia
+    },
+    laboratoriosOcupacion: [
+      { nombre: 'Ambiente 301 - Desarrollo Web (ADSO)', porcentaje: 90, activo: true },
+      { nombre: 'Ambiente 302 - Redes y Bases de Datos', porcentaje: 75, activo: true },
+      { nombre: 'Ambiente 303 - Mantenimiento Hardware', porcentaje: 40, activo: false }
+    ]
+  });
+});

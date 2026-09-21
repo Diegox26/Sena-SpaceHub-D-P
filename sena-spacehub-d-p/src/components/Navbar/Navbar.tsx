@@ -12,6 +12,7 @@ export default function NavBar() {
         <nav className="flex gap-4 text-xs font-mono">
           <Link to="/dashboard" className="text-slate-300 hover:text-sena-green transition font-bold">Dashboard</Link>
           <Link to="/inventario" className="text-slate-300 hover:text-sena-green transition font-bold">Inventario Equipos</Link>
+          <Link to="/prestamos" className="text-slate-300 hover:text-sena-green transition font-bold">Prestamos</Link>
         </nav>
       </div>
     </header>

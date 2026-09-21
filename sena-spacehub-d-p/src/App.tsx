@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage/DashboardPage';
 import EquiposPage from './pages/EquiposPage/EquiposPage';
 import NuevoEquipoPage from './pages/NuevoEquipoPage/NuevoEquipoPage';
 import DetalleEquipoPage from './pages/DetalleEquipoPage/DetalleEquipoPage';
+import PrestamosPage from './pages/PrestamosPage/PrestamosPage';
 
 function SpaceHubRoutes() {
   return (
@@ -19,6 +20,8 @@ function SpaceHubRoutes() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="inventario" element={<EquiposPage />} />
+
+          <Route path="prestamos" element={<PrestamosPage />} />
 
           <Route element={<ProtectedRoute requiredRole="Administrador" />}>
             <Route path="inventario/nuevo" element={<NuevoEquipoPage />} />
